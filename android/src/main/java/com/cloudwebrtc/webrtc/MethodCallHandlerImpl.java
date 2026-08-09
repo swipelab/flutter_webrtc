@@ -1802,7 +1802,7 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
   public void trackDispose(final String trackId) {
     LocalTrack track;
     synchronized (localTracks) {
-      track = localTracks.get(trackId);
+      track = localTracks.remove(trackId);
     }
     if (track == null) {
       Log.d(TAG, "trackDispose() track is null");
@@ -1813,9 +1813,16 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
     if (track instanceof LocalVideoTrack) {
       getUserMediaImpl.removeVideoCapturer(trackId);
     }
-    synchronized (localTracks) {
-      localTracks.remove(trackId);
+    // The streams holding this track outlive it, and a stream reading a
+    // disposed track throws.
+    for (MediaStream stream : localStreams.values()) {
+      if (track.track instanceof AudioTrack) {
+        stream.removeTrack((AudioTrack) track.track);
+      } else if (track.track instanceof VideoTrack) {
+        stream.removeTrack((VideoTrack) track.track);
+      }
     }
+    track.dispose();
   }
 
   public void mediaStreamTrackSetEnabled(final String id, final boolean enabled, String peerConnectionId) {

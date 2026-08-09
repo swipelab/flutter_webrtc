@@ -53,15 +53,32 @@ public class LocalVideoTrack extends LocalTrack implements VideoProcessor {
     @Override
     public void onCapturerStopped() {}
 
+    /**
+     * The capturer owns the frame it hands in and releases it once this
+     * returns, so a frame a processor puts in its place carries a reference
+     * only this method can drop.
+     */
     @Override
     public void onFrameCaptured(VideoFrame videoFrame) {
-        if (sink != null) {
-            synchronized (processors) {
-                for (ExternalVideoFrameProcessing processor : processors) {
-                    videoFrame = processor.onFrame(videoFrame);
+        if (sink == null) {
+            return;
+        }
+        VideoFrame current = videoFrame;
+        synchronized (processors) {
+            for (ExternalVideoFrameProcessing processor : processors) {
+                VideoFrame processed = processor.onFrame(current);
+                if (processed == current) {
+                    continue;
                 }
+                if (current != videoFrame) {
+                    current.release();
+                }
+                current = processed;
             }
-            sink.onFrame(videoFrame);
+        }
+        sink.onFrame(current);
+        if (current != videoFrame) {
+            current.release();
         }
     }
 }

@@ -505,7 +505,7 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
         List<Object> videoTracks = new ArrayList<>();
         for (AudioTrack track : stream.audioTracks) {
           synchronized (localTracks) {
-            localTracks.put(track.id(), new LocalAudioTrack(track));
+            localTracks.put(track.id(), new LocalAudioTrack(track, null));
           }
           Map<String, Object> trackMap = new HashMap<>();
           trackMap.put("enabled", track.enabled());

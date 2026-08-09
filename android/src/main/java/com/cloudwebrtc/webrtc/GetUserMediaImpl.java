@@ -398,7 +398,7 @@ public class GetUserMediaImpl {
         AudioTrack track = pcFactory.createAudioTrack(trackId, audioSource);
         stream.addTrack(track);
 
-        stateProvider.putLocalTrack(track.id(), new LocalAudioTrack(track));
+        stateProvider.putLocalTrack(track.id(), new LocalAudioTrack(track, audioSource));
 
         ConstraintsMap trackParams = new ConstraintsMap();
         trackParams.putBoolean("enabled", track.enabled());

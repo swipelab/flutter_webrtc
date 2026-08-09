@@ -3,8 +3,11 @@ package com.cloudwebrtc.webrtc.audio;
 import android.media.AudioFormat;
 import android.os.SystemClock;
 
+import androidx.annotation.Nullable;
+
 import com.cloudwebrtc.webrtc.LocalTrack;
 
+import org.webrtc.AudioSource;
 import org.webrtc.AudioTrack;
 import org.webrtc.AudioTrackSink;
 import org.webrtc.audio.JavaAudioDeviceModule;
@@ -18,8 +21,26 @@ import java.util.List;
  */
 public class LocalAudioTrack
         extends LocalTrack implements JavaAudioDeviceModule.SamplesReadyCallback {
-    public LocalAudioTrack(AudioTrack audioTrack) {
+    /**
+     * The capture source this track was opened on, or null for a track that
+     * only wraps one a media stream already holds. The recorder behind the
+     * source runs until every reference to it is released, so the track that
+     * opened it releases it.
+     */
+    @Nullable
+    private final AudioSource audioSource;
+
+    public LocalAudioTrack(AudioTrack audioTrack, @Nullable AudioSource audioSource) {
         super(audioTrack);
+        this.audioSource = audioSource;
+    }
+
+    @Override
+    public void dispose() {
+        super.dispose();
+        if (audioSource != null) {
+            audioSource.dispose();
+        }
     }
 
     final List<AudioTrackSink> sinks = new ArrayList<>();

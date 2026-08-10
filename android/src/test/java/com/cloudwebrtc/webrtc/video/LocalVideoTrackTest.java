@@ -2,6 +2,7 @@ package com.cloudwebrtc.webrtc.video;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThrows;
 
 import org.junit.Test;
 import org.webrtc.VideoFrame;
@@ -109,6 +110,52 @@ public class LocalVideoTrackTest {
     assertSame(last, sink.last);
     assertEquals(1, middleBuffer.released);
     assertEquals(1, lastBuffer.released);
+    assertEquals(0, capturedBuffer.released);
+  }
+
+  @Test
+  public void releasesTheReplacementWhenALaterProcessorThrows() {
+    LocalVideoTrack track = new LocalVideoTrack(null);
+    LastFrameSink sink = new LastFrameSink();
+    track.setSink(sink);
+
+    CountingBuffer capturedBuffer = new CountingBuffer();
+    CountingBuffer replacementBuffer = new CountingBuffer();
+    VideoFrame captured = frame(capturedBuffer);
+    VideoFrame replacement = frame(replacementBuffer);
+    RuntimeException failure = new RuntimeException("processor failed");
+    track.addProcessor(incoming -> replacement);
+    track.addProcessor(incoming -> {
+      throw failure;
+    });
+
+    RuntimeException thrown =
+        assertThrows(RuntimeException.class, () -> track.onFrameCaptured(captured));
+
+    assertSame(failure, thrown);
+    assertEquals(1, replacementBuffer.released);
+    assertEquals(0, capturedBuffer.released);
+  }
+
+  @Test
+  public void releasesTheReplacementWhenTheSinkThrows() {
+    LocalVideoTrack track = new LocalVideoTrack(null);
+    RuntimeException failure = new RuntimeException("sink failed");
+    track.setSink(frame -> {
+      throw failure;
+    });
+
+    CountingBuffer capturedBuffer = new CountingBuffer();
+    CountingBuffer replacementBuffer = new CountingBuffer();
+    VideoFrame captured = frame(capturedBuffer);
+    VideoFrame replacement = frame(replacementBuffer);
+    track.addProcessor(incoming -> replacement);
+
+    RuntimeException thrown =
+        assertThrows(RuntimeException.class, () -> track.onFrameCaptured(captured));
+
+    assertSame(failure, thrown);
+    assertEquals(1, replacementBuffer.released);
     assertEquals(0, capturedBuffer.released);
   }
 

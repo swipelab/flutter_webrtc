@@ -8,6 +8,10 @@
 #import "LocalVideoTrack.h"
 #import "LocalAudioTrack.h"
 
+static const NSInteger kDefaultCaptureWidth = 1280;
+static const NSInteger kDefaultCaptureHeight = 720;
+static const NSInteger kDefaultCaptureFps = 30;
+
 @implementation RTCMediaStreamTrack (Flutter)
 
 - (id)settings {
@@ -47,6 +51,7 @@ typedef void (^NavigatorUserMediaErrorCallback)(NSString* errorType, NSString* e
  */
 typedef void (^NavigatorUserMediaSuccessCallback)(RTCMediaStream* mediaStream);
 
+// RTCMediaConstraints carries string values only.
 - (NSDictionary*)defaultVideoConstraints {
     return @{@"minWidth" : @"1280", @"minHeight" : @"720", @"minFrameRate" : @"30"};
 }
@@ -323,7 +328,8 @@ typedef void (^NavigatorUserMediaSuccessCallback)(RTCMediaStream* mediaStream);
     }
   } else if ([constraint isKindOfClass:[NSDictionary class]]) {
     id idealConstraint = constraint[@"ideal"];
-    if ([idealConstraint isKindOfClass:[NSString class]]) {
+    if ([idealConstraint isKindOfClass:[NSString class]] ||
+        [idealConstraint isKindOfClass:[NSNumber class]]) {
       int possibleValue = [idealConstraint intValue];
       if (possibleValue != 0) {
         return possibleValue;
@@ -424,9 +430,11 @@ typedef void (^NavigatorUserMediaSuccessCallback)(RTCMediaStream* mediaStream);
     videoConstraints = @{@"mandatory": [self defaultVideoConstraints]};
   }
 
-  NSInteger targetWidth = 0;
-  NSInteger targetHeight = 0;
-  NSInteger targetFps = 0;
+  // selectFormatForDevice picks the format nearest the target, so a zero
+  // target resolves to the device's smallest format at zero fps.
+  NSInteger targetWidth = kDefaultCaptureWidth;
+  NSInteger targetHeight = kDefaultCaptureHeight;
+  NSInteger targetFps = kDefaultCaptureFps;
 
   if (!videoDevice) {
     videoDevice = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];

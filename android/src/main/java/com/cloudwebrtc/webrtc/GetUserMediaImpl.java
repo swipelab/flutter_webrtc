@@ -33,6 +33,7 @@ import android.view.WindowManager;
 
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
+import androidx.annotation.VisibleForTesting;
 
 import com.cloudwebrtc.webrtc.audio.AudioSwitchManager;
 import com.cloudwebrtc.webrtc.audio.AudioUtils;
@@ -682,7 +683,8 @@ public class GetUserMediaImpl {
      * @return Returns the integer at the key, or the `ideal` property if it is a map.
      */
     @Nullable
-    private Integer getConstrainInt(@Nullable ConstraintsMap constraintsMap, String key) {
+    @VisibleForTesting
+    static Integer getConstrainInt(@Nullable ConstraintsMap constraintsMap, String key) {
         if (constraintsMap == null) {
             return null;
         }
@@ -707,7 +709,8 @@ public class GetUserMediaImpl {
 
         if (constraintsMap.getType(key) == ObjectType.Map) {
             ConstraintsMap innerMap = constraintsMap.getMap(key);
-            if (constraintsMap.getType("ideal") == ObjectType.Number) {
+            ObjectType idealType = innerMap.getType("ideal");
+            if (idealType == ObjectType.Number || idealType == ObjectType.String) {
                 return innerMap.getInt("ideal");
             }
         }

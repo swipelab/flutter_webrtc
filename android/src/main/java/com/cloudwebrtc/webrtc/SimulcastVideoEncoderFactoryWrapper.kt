@@ -1,6 +1,7 @@
 package com.cloudwebrtc.webrtc
 
 import org.webrtc.*
+import org.webrtc.video.ExtendingVideoEncoderFactory
 import java.util.concurrent.Callable
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -221,7 +222,17 @@ internal class SimulcastVideoEncoderFactoryWrapper(
         val hardwareVideoEncoderFactory = HardwareVideoEncoderFactory(
             sharedContext, enableIntelVp8Encoder, enableH264HighProfile
         )
-        primary = StreamEncoderWrapperFactory(hardwareVideoEncoderFactory)
+        // The platform's software MediaCodecs fill only what neither the
+        // hardware nor libwebrtc's own encoders carry — H.264 on a device with
+        // no vendor encoder for it.
+        primary = StreamEncoderWrapperFactory(
+            ExtendingVideoEncoderFactory(
+                hardwareVideoEncoderFactory,
+                ExtendingVideoEncoderFactory(
+                    SoftwareVideoEncoderFactory(), PlatformSoftwareVideoEncoderFactory()
+                )
+            )
+        )
         fallback = StreamEncoderWrapperFactory(FallbackFactory(primary))
         native = SimulcastVideoEncoderFactory(primary, fallback)
     }

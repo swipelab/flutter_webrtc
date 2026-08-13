@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:webrtc_interface/webrtc_interface.dart';
 
 import '../helper.dart';
+import 'event_channel.dart';
 import 'utils.dart';
 
 class MediaStreamTrackNative extends MediaStreamTrack {
@@ -28,7 +29,36 @@ class MediaStreamTrackNative extends MediaStreamTrack {
 
   bool _muted = false;
 
+  StreamTrackCallback? _onEnded;
+
+  StreamSubscription<Map<String, dynamic>>? _endedSubscription;
+
   String get peerConnectionId => _peerConnectionId;
+
+  @override
+  StreamTrackCallback? get onEnded => _onEnded;
+
+  @override
+  set onEnded(StreamTrackCallback? callback) {
+    _onEnded = callback;
+    if (callback == null) {
+      _cancelEndedSubscription();
+      return;
+    }
+    _endedSubscription ??=
+        FlutterWebRTCEventChannel.instance.handleEvents.stream.listen(
+      (data) {
+        final ended = data['mediaStreamTrackEnded'];
+        if (ended == null || ended['trackId'] != _trackId) return;
+        _onEnded?.call();
+      },
+    );
+  }
+
+  void _cancelEndedSubscription() {
+    _endedSubscription?.cancel();
+    _endedSubscription = null;
+  }
 
   @override
   set enabled(bool enabled) {
@@ -124,6 +154,7 @@ class MediaStreamTrackNative extends MediaStreamTrack {
 
   @override
   Future<void> stop() async {
+    _cancelEndedSubscription();
     await WebRTC.invokeMethod(
       'trackDispose',
       <String, dynamic>{'trackId': _trackId},

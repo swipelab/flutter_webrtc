@@ -533,6 +533,9 @@ public class GetUserMediaImpl {
         /* Create ScreenCapture */
         VideoTrack displayTrack = null;
         VideoCapturer videoCapturer = null;
+        // The capturer unregisters this callback before it stops the projection, so
+        // onStop names an end the app did not ask for.
+        final String trackId = stateProvider.getNextTrackUUID();
         videoCapturer =
                 new OrientationAwareScreenCapturer(
                         mediaProjectionData,
@@ -540,9 +543,10 @@ public class GetUserMediaImpl {
                             @Override
                             public void onStop() {
                                 super.onStop();
-                                // After Huawei P30 and Android 10 version test, the onstop method is called, which will not affect the next process,
-                                // and there is no need to call the resulterror method
-                                //resultError("MediaProjection.Callback()", "User revoked permission to capture the screen.", result);
+                                ConstraintsMap params = new ConstraintsMap();
+                                params.putString("event", "mediaStreamTrackEnded");
+                                params.putString("trackId", trackId);
+                                FlutterWebRTCPlugin.sharedSingleton.sendEvent(params.toMap());
                             }
                         });
         if (videoCapturer == null) {
@@ -576,7 +580,6 @@ public class GetUserMediaImpl {
         videoCapturer.startCapture(info.width, info.height, info.fps);
         Log.d(TAG, "OrientationAwareScreenCapturer.startCapture: " + info.width + "x" + info.height + "@" + info.fps);
 
-        String trackId = stateProvider.getNextTrackUUID();
         mVideoCapturers.put(trackId, info);
 
         displayTrack = pcFactory.createVideoTrack(trackId, videoSource);

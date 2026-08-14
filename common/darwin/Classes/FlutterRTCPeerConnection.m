@@ -190,10 +190,9 @@
   [dataChannels removeAllObjects];
 }
 
-// WebRTC-SDK through 144.7559.10 aborts in RTCStatsCollector when stats
-// collection walks a stopped transceiver — hardened libc++ trips on its
-// disengaged optionals — so while any transceiver is stopped a poll never
-// enters the collector and answers the last report instead.
+// WebRTC-SDK through 144.7559.10 aborts in RTCStatsCollector when collection
+// walks a stopped transceiver. While any transceiver is stopped, getStats
+// does not enter the collector.
 static const void* kLastStatsReportKey = &kLastStatsReportKey;
 
 static BOOL statsCollectorUnsafe(RTCPeerConnection* peerConnection) {

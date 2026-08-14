@@ -190,9 +190,28 @@
   [dataChannels removeAllObjects];
 }
 
+// WebRTC-SDK through 144.7559.10 aborts in RTCStatsCollector when stats
+// collection walks a stopped transceiver — hardened libc++ trips on its
+// disengaged optionals — so while any transceiver is stopped a poll never
+// enters the collector and answers the last report instead.
+static const void* kLastStatsReportKey = &kLastStatsReportKey;
+
+static BOOL statsCollectorUnsafe(RTCPeerConnection* peerConnection) {
+  for (RTCRtpTransceiver* transceiver in peerConnection.transceivers) {
+    if (transceiver.isStopped) {
+      return YES;
+    }
+  }
+  return NO;
+}
+
 - (void)peerConnectionGetStatsForTrackId:(nonnull NSString*)trackID
                           peerConnection:(nonnull RTCPeerConnection*)peerConnection
                                   result:(nonnull FlutterResult)result {
+  if (statsCollectorUnsafe(peerConnection)) {
+    result(@{@"stats" : @[]});
+    return;
+  }
   RTCRtpSender* sender = nil;
   RTCRtpReceiver* receiver = nil;
 
@@ -247,6 +266,11 @@
 
 - (void)peerConnectionGetStats:(nonnull RTCPeerConnection*)peerConnection
                         result:(nonnull FlutterResult)result {
+  if (statsCollectorUnsafe(peerConnection)) {
+    NSDictionary* last = objc_getAssociatedObject(peerConnection, kLastStatsReportKey);
+    result(last ?: @{@"stats" : @[]});
+    return;
+  }
   [peerConnection statisticsWithCompletionHandler:^(RTCStatisticsReport* statsReport) {
     NSMutableArray* stats = [NSMutableArray array];
     for (id key in statsReport.statistics) {
@@ -258,7 +282,10 @@
         @"values" : report.values
       }];
     }
-    result(@{@"stats" : stats});
+    NSDictionary* response = @{@"stats" : stats};
+    objc_setAssociatedObject(peerConnection, kLastStatsReportKey, response,
+                             OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    result(response);
   }];
 }
 
